@@ -81,11 +81,11 @@ export interface IStorage {
   saveWeatherCache(location: string, data: string): Promise<WeatherCache>;
 
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 
   constructor() {
     this.sessionStore = new MemoryStore({
@@ -110,7 +110,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const result = await db.insert(users).values(insertUser);
+    const userId = Number(result.insertId);
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
   }
 
@@ -139,16 +141,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTrip(trip: InsertTrip & { userId: number }): Promise<Trip> {
-    const [newTrip] = await db.insert(trips).values(trip).returning();
+    const result = await db.insert(trips).values(trip);
+    const tripId = Number(result.insertId);
+    const [newTrip] = await db.select().from(trips).where(eq(trips.id, tripId));
     return newTrip;
   }
 
   async updateTrip(id: number, tripData: Partial<InsertTrip>): Promise<Trip> {
-    const [updatedTrip] = await db
+    await db
       .update(trips)
       .set(tripData)
-      .where(eq(trips.id, id))
-      .returning();
+      .where(eq(trips.id, id));
+    const [updatedTrip] = await db.select().from(trips).where(eq(trips.id, id));
     return updatedTrip;
   }
 
@@ -192,16 +196,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSchedule(schedule: InsertSchedule & { tripId: number }): Promise<Schedule> {
-    const [newSchedule] = await db.insert(schedules).values(schedule).returning();
+    const result = await db.insert(schedules).values(schedule);
+    const scheduleId = Number(result.insertId);
+    const [newSchedule] = await db.select().from(schedules).where(eq(schedules.id, scheduleId));
     return newSchedule;
   }
 
   async updateSchedule(id: number, scheduleData: Partial<InsertSchedule>): Promise<Schedule> {
-    const [updatedSchedule] = await db
+    await db
       .update(schedules)
       .set(scheduleData)
-      .where(eq(schedules.id, id))
-      .returning();
+      .where(eq(schedules.id, id));
+    const [updatedSchedule] = await db.select().from(schedules).where(eq(schedules.id, id));
     return updatedSchedule;
   }
 
@@ -235,16 +241,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPackingItem(item: InsertPackingItem & { tripId: number }): Promise<PackingItem> {
-    const [newItem] = await db.insert(packingItems).values(item).returning();
+    const result = await db.insert(packingItems).values(item);
+    const itemId = Number(result.insertId);
+    const [newItem] = await db.select().from(packingItems).where(eq(packingItems.id, itemId));
     return newItem;
   }
 
   async updatePackingItem(id: number, itemData: Partial<InsertPackingItem & { isPacked: boolean }>): Promise<PackingItem> {
-    const [updatedItem] = await db
+    await db
       .update(packingItems)
       .set(itemData)
-      .where(eq(packingItems.id, id))
-      .returning();
+      .where(eq(packingItems.id, id));
+    const [updatedItem] = await db.select().from(packingItems).where(eq(packingItems.id, id));
     return updatedItem;
   }
 
@@ -263,7 +271,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPackingCategory(category: { name: string; color: string }): Promise<PackingCategory> {
-    const [newCategory] = await db.insert(packingCategories).values(category).returning();
+    const result = await db.insert(packingCategories).values(category);
+    const categoryId = Number(result.insertId);
+    const [newCategory] = await db.select().from(packingCategories).where(eq(packingCategories.id, categoryId));
     return newCategory;
   }
 
@@ -276,7 +286,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTripTag(tag: { tripId: number; name: string; color: string }): Promise<TripTag> {
-    const [newTag] = await db.insert(tripTags).values(tag).returning();
+    const result = await db.insert(tripTags).values(tag);
+    const tagId = Number(result.insertId);
+    const [newTag] = await db.select().from(tripTags).where(eq(tripTags.id, tagId));
     return newTag;
   }
 
@@ -293,7 +305,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addTripMember(tripMember: { tripId: number; userId: number; role: string }): Promise<TripMember> {
-    const [newMember] = await db.insert(tripMembers).values(tripMember).returning();
+    const result = await db.insert(tripMembers).values(tripMember);
+    const memberId = Number(result.insertId);
+    const [newMember] = await db.select().from(tripMembers).where(eq(tripMembers.id, memberId));
     return newMember;
   }
 

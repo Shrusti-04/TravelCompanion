@@ -1,77 +1,77 @@
-import { pgTable, text, serial, integer, boolean, date, timestamp, foreignKey, uniqueIndex } from "drizzle-orm/pg-core";
+import { mysqlTable, varchar, serial, int, boolean, date, timestamp, foreignKey, unique, text } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Users table
-export const users = pgTable("users", {
+export const users = mysqlTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
+  username: varchar("username", { length: 255 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
 });
 
 // Trips table
-export const trips = pgTable("trips", {
+export const trips = mysqlTable("trips", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  name: text("name").notNull(),
-  destination: text("destination").notNull(),
+  userId: int("user_id").notNull().references(() => users.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  destination: varchar("destination", { length: 255 }).notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
-  imageUrl: text("image_url"),
+  imageUrl: varchar("image_url", { length: 255 }),
   description: text("description"),
   isShared: boolean("is_shared").default(false).notNull(),
 });
 
 // Trip tags table
-export const tripTags = pgTable("trip_tags", {
+export const tripTags = mysqlTable("trip_tags", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
-  name: text("name").notNull(),
-  color: text("color").notNull(),
+  tripId: int("trip_id").notNull().references(() => trips.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 50 }).notNull(),
 });
 
 // Trip schedules table
-export const schedules = pgTable("schedules", {
+export const schedules = mysqlTable("schedules", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
+  tripId: int("trip_id").notNull().references(() => trips.id),
   day: date("day").notNull(),
-  title: text("title").notNull(),
-  time: text("time"),
-  location: text("location"),
+  title: varchar("title", { length: 255 }).notNull(),
+  time: varchar("time", { length: 50 }),
+  location: varchar("location", { length: 255 }),
   description: text("description"),
 });
 
 // Packing list categories
-export const packingCategories = pgTable("packing_categories", {
+export const packingCategories = mysqlTable("packing_categories", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  color: text("color").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 50 }).notNull(),
 });
 
 // Packing list items
-export const packingItems = pgTable("packing_items", {
+export const packingItems = mysqlTable("packing_items", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
-  categoryId: integer("category_id").references(() => packingCategories.id),
-  name: text("name").notNull(),
+  tripId: int("trip_id").notNull().references(() => trips.id),
+  categoryId: int("category_id").references(() => packingCategories.id),
+  name: varchar("name", { length: 255 }).notNull(),
   isPacked: boolean("is_packed").default(false).notNull(),
-  quantity: integer("quantity").default(1).notNull(),
+  quantity: int("quantity").default(1).notNull(),
 });
 
 // Trip members (for sharing)
-export const tripMembers = pgTable("trip_members", {
+export const tripMembers = mysqlTable("trip_members", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
-  userId: integer("user_id").notNull().references(() => users.id),
-  role: text("role").default("viewer").notNull(), // viewer, editor, owner
+  tripId: int("trip_id").notNull().references(() => trips.id),
+  userId: int("user_id").notNull().references(() => users.id),
+  role: varchar("role", { length: 50 }).default("viewer").notNull(), // viewer, editor, owner
 });
 
 // Weather data cache
-export const weatherCache = pgTable("weather_cache", {
+export const weatherCache = mysqlTable("weather_cache", {
   id: serial("id").primaryKey(),
-  location: text("location").notNull(),
+  location: varchar("location", { length: 255 }).notNull(),
   data: text("data").notNull(), // JSON string
   timestamp: timestamp("timestamp").notNull(),
 });
