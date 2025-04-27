@@ -149,128 +149,128 @@ export default function TripDetailsPage() {
             </div>
 
             <Card className="bg-white shadow overflow-hidden">
-              <div className="border-b border-neutral-200">
-                <Tabs 
+              <Tabs 
                   value={activeTab} 
                   onValueChange={setActiveTab}
                   className="w-full"
                 >
-                  <TabsList className="flex -mb-px">
-                    <TabsTrigger value="schedule" className="border-b-2 py-4 px-4">Schedule</TabsTrigger>
-                    <TabsTrigger value="packing" className="border-b-2 py-4 px-4">Packing List</TabsTrigger>
-                    <TabsTrigger value="accommodations" className="border-b-2 py-4 px-4">Accommodations</TabsTrigger>
-                    <TabsTrigger value="transportation" className="border-b-2 py-4 px-4">Transportation</TabsTrigger>
-                    <TabsTrigger value="notes" className="border-b-2 py-4 px-4">Notes</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              
-              <TabsContent value="schedule" className="p-4 md:p-6">
-                {/* New Itinerary Component */}
-                <TripItinerary tripId={parseInt(id)} />
-              </TabsContent>
-              
-              <TabsContent value="packing" className="p-4 md:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-base font-semibold text-neutral-800">
-                    {trip.name} Essentials
-                  </h4>
-                  <div className="text-sm text-neutral-500">
-                    <span className="font-medium">{totalItems}</span> items | 
-                    <span className="font-medium text-green-500 ml-1">{packedItems}</span> packed
+                  <div className="border-b border-neutral-200">
+                    <TabsList className="flex -mb-px">
+                      <TabsTrigger value="schedule" className="border-b-2 py-4 px-4">Schedule</TabsTrigger>
+                      <TabsTrigger value="packing" className="border-b-2 py-4 px-4">Packing List</TabsTrigger>
+                      <TabsTrigger value="accommodations" className="border-b-2 py-4 px-4">Accommodations</TabsTrigger>
+                      <TabsTrigger value="transportation" className="border-b-2 py-4 px-4">Transportation</TabsTrigger>
+                      <TabsTrigger value="notes" className="border-b-2 py-4 px-4">Notes</TabsTrigger>
+                    </TabsList>
                   </div>
-                </div>
-
-                {packingLoading ? (
-                  <div className="animate-pulse space-y-4">
-                    {Array(5).fill(0).map((_, i) => (
-                      <div key={i} className="py-3 flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="h-4 w-4 bg-gray-300 rounded"></div>
-                          <div className="ml-3 h-4 bg-gray-300 rounded w-40"></div>
-                        </div>
-                        <div className="h-5 w-16 bg-gray-300 rounded"></div>
+                  
+                  <TabsContent value="schedule" className="p-4 md:p-6">
+                    {/* New Itinerary Component */}
+                    <TripItinerary tripId={parseInt(id)} />
+                  </TabsContent>
+                  
+                  <TabsContent value="packing" className="p-4 md:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-base font-semibold text-neutral-800">
+                        {trip.name} Essentials
+                      </h4>
+                      <div className="text-sm text-neutral-500">
+                        <span className="font-medium">{totalItems}</span> items | 
+                        <span className="font-medium text-green-500 ml-1">{packedItems}</span> packed
                       </div>
-                    ))}
-                  </div>
-                ) : packingItems.length > 0 ? (
-                  <ul className="divide-y divide-neutral-200">
-                    {packingItems.map(item => (
-                      <PackingItemComponent
-                        key={item.id}
-                        item={item}
-                        category={getCategory(item)}
-                        onToggle={(id, isChecked) => {
-                          togglePackedMutation.mutate({ itemId: id, isPacked: isChecked });
-                        }}
-                        onEdit={() => {}}
-                        onDelete={() => {}}
-                      />
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-neutral-500">No packing items added yet.</p>
-                    <Button 
-                      variant="link" 
-                      className="mt-2"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add packing items
-                    </Button>
-                  </div>
-                )}
+                    </div>
 
-                {packingItems.length > 0 && (
-                  <div className="mt-4 flex">
-                    <Button variant="outline" className="mr-3">
-                      Mark All as Packed
-                    </Button>
-                    <Button variant="outline">
-                      Clear All
-                    </Button>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="accommodations" className="p-4 md:p-6">
-                <div className="text-center py-6">
-                  <p className="text-neutral-500">No accommodations added yet.</p>
-                  <Button 
-                    variant="link" 
-                    className="mt-2"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add accommodation details
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="transportation" className="p-4 md:p-6">
-                <div className="text-center py-6">
-                  <p className="text-neutral-500">No transportation details added yet.</p>
-                  <Button 
-                    variant="link" 
-                    className="mt-2"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add transportation details
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="notes" className="p-4 md:p-6">
-                <div className="text-center py-6">
-                  <p className="text-neutral-500">No notes added yet.</p>
-                  <Button 
-                    variant="link" 
-                    className="mt-2"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add notes
-                  </Button>
-                </div>
-              </TabsContent>
+                    {packingLoading ? (
+                      <div className="animate-pulse space-y-4">
+                        {Array(5).fill(0).map((_, i) => (
+                          <div key={i} className="py-3 flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div className="h-4 w-4 bg-gray-300 rounded"></div>
+                              <div className="ml-3 h-4 bg-gray-300 rounded w-40"></div>
+                            </div>
+                            <div className="h-5 w-16 bg-gray-300 rounded"></div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : packingItems.length > 0 ? (
+                      <ul className="divide-y divide-neutral-200">
+                        {packingItems.map(item => (
+                          <PackingItemComponent
+                            key={item.id}
+                            item={item}
+                            category={getCategory(item)}
+                            onToggle={(id, isChecked) => {
+                              togglePackedMutation.mutate({ itemId: id, isPacked: isChecked });
+                            }}
+                            onEdit={() => {}}
+                            onDelete={() => {}}
+                          />
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-center py-6">
+                        <p className="text-neutral-500">No packing items added yet.</p>
+                        <Button 
+                          variant="link" 
+                          className="mt-2"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add packing items
+                        </Button>
+                      </div>
+                    )}
+
+                    {packingItems.length > 0 && (
+                      <div className="mt-4 flex">
+                        <Button variant="outline" className="mr-3">
+                          Mark All as Packed
+                        </Button>
+                        <Button variant="outline">
+                          Clear All
+                        </Button>
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="accommodations" className="p-4 md:p-6">
+                    <div className="text-center py-6">
+                      <p className="text-neutral-500">No accommodations added yet.</p>
+                      <Button 
+                        variant="link" 
+                        className="mt-2"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add accommodation details
+                      </Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="transportation" className="p-4 md:p-6">
+                    <div className="text-center py-6">
+                      <p className="text-neutral-500">No transportation details added yet.</p>
+                      <Button 
+                        variant="link" 
+                        className="mt-2"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add transportation details
+                      </Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="notes" className="p-4 md:p-6">
+                    <div className="text-center py-6">
+                      <p className="text-neutral-500">No notes added yet.</p>
+                      <Button 
+                        variant="link" 
+                        className="mt-2"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add notes
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
             </Card>
           </div>
         </div>
