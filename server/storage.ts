@@ -21,7 +21,7 @@ import {
   type WeatherCache
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, desc, asc, gte, lte } from "drizzle-orm";
+import { eq, and, inArray, desc, asc, gte, lte, sql } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -111,8 +111,8 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await db.insert(users).values(insertUser);
-    // MySQL returns the last inserted ID directly
-    const userId = Number(result[0].insertId);
+    // For SQLite, the last id will be returned immediately
+    const userId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
   }
@@ -124,35 +124,64 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTripsByUser(userId: number): Promise<Trip[]> {
-    return await db.select().from(trips).where(eq(trips.userId, userId));
+    const userTrips = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.userId, userId))
+      .orderBy(desc(trips.startDate));
+    
+    return userTrips;
   }
 
   async getSharedTrips(userId: number): Promise<Trip[]> {
-    const sharedTripIds = await db
+    const tripIds = await db
       .select({ tripId: tripMembers.tripId })
       .from(tripMembers)
       .where(eq(tripMembers.userId, userId));
     
-    if (sharedTripIds.length === 0) return [];
+    if (tripIds.length === 0) {
+      return [];
+    }
     
-    return await db
+    const tripIdArr = tripIds.map(t => t.tripId);
+    
+    const sharedTrips = await db
       .select()
       .from(trips)
-      .where(inArray(trips.id, sharedTripIds.map(t => t.tripId)));
+      .where(inArray(trips.id, tripIdArr))
+      .orderBy(desc(trips.startDate));
+    
+    return sharedTrips;
   }
 
   async createTrip(trip: InsertTrip & { userId: number }): Promise<Trip> {
-    const result = await db.insert(trips).values(trip);
-    const tripId = Number(result[0].insertId);
+    const result = await db.insert(trips).values({
+      name: trip.name,
+      userId: trip.userId,
+      destination: trip.destination,
+      startDate: trip.startDate.toISOString(),
+      endDate: trip.endDate.toISOString(),
+      imageUrl: trip.imageUrl,
+      description: trip.description,
+      isShared: trip.isShared ?? false
+    });
+    
+    const tripId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [newTrip] = await db.select().from(trips).where(eq(trips.id, tripId));
     return newTrip;
   }
 
   async updateTrip(id: number, tripData: Partial<InsertTrip>): Promise<Trip> {
-    await db
-      .update(trips)
-      .set(tripData)
-      .where(eq(trips.id, id));
+    // Convert Date objects to ISO strings for SQLite storage
+    let updatedData: any = {...tripData};
+    if (tripData.startDate) {
+      updatedData.startDate = tripData.startDate.toISOString();
+    }
+    if (tripData.endDate) {
+      updatedData.endDate = tripData.endDate.toISOString();
+    }
+    
+    await db.update(trips).set(updatedData).where(eq(trips.id, id));
     const [updatedTrip] = await db.select().from(trips).where(eq(trips.id, id));
     return updatedTrip;
   }
@@ -168,46 +197,64 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSchedulesByTrip(tripId: number): Promise<Schedule[]> {
-    return await db
+    const scheduleItems = await db
       .select()
       .from(schedules)
       .where(eq(schedules.tripId, tripId))
       .orderBy(asc(schedules.day), asc(schedules.time));
+    
+    return scheduleItems;
   }
 
   async getSchedulesByUser(userId: number): Promise<Schedule[]> {
     const userTrips = await this.getTripsByUser(userId);
+    if (userTrips.length === 0) {
+      return [];
+    }
+    
     const tripIds = userTrips.map(trip => trip.id);
     
-    if (tripIds.length === 0) return [];
-    
-    return await db
+    const scheduleItems = await db
       .select()
       .from(schedules)
       .where(inArray(schedules.tripId, tripIds))
       .orderBy(asc(schedules.day), asc(schedules.time));
+    
+    return scheduleItems;
   }
 
   async getSchedulesByDate(date: Date): Promise<Schedule[]> {
-    return await db
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const scheduleItems = await db
       .select()
       .from(schedules)
-      .where(eq(schedules.day, date))
+      .where(eq(schedules.day, dateStr))
       .orderBy(asc(schedules.time));
+    
+    return scheduleItems;
   }
 
   async createSchedule(schedule: InsertSchedule & { tripId: number }): Promise<Schedule> {
-    const result = await db.insert(schedules).values(schedule);
-    const scheduleId = Number(result[0].insertId);
+    const scheduleData = {
+      ...schedule,
+      day: schedule.day.toISOString().split('T')[0], // Store as "YYYY-MM-DD"
+      tripId: schedule.tripId
+    };
+    
+    const result = await db.insert(schedules).values(scheduleData);
+    const scheduleId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [newSchedule] = await db.select().from(schedules).where(eq(schedules.id, scheduleId));
     return newSchedule;
   }
 
   async updateSchedule(id: number, scheduleData: Partial<InsertSchedule>): Promise<Schedule> {
-    await db
-      .update(schedules)
-      .set(scheduleData)
-      .where(eq(schedules.id, id));
+    let updatedData: any = {...scheduleData};
+    if (scheduleData.day) {
+      updatedData.day = scheduleData.day.toISOString().split('T')[0];
+    }
+    
+    await db.update(schedules).set(updatedData).where(eq(schedules.id, id));
     const [updatedSchedule] = await db.select().from(schedules).where(eq(schedules.id, id));
     return updatedSchedule;
   }
@@ -223,36 +270,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPackingItemsByTrip(tripId: number): Promise<PackingItem[]> {
-    return await db
+    const items = await db
       .select()
       .from(packingItems)
-      .where(eq(packingItems.tripId, tripId));
+      .where(eq(packingItems.tripId, tripId))
+      .orderBy(asc(packingItems.categoryId), asc(packingItems.name));
+    
+    return items;
   }
 
   async getPackingItemsByUser(userId: number): Promise<PackingItem[]> {
     const userTrips = await this.getTripsByUser(userId);
+    if (userTrips.length === 0) {
+      return [];
+    }
+    
     const tripIds = userTrips.map(trip => trip.id);
     
-    if (tripIds.length === 0) return [];
-    
-    return await db
+    const items = await db
       .select()
       .from(packingItems)
-      .where(inArray(packingItems.tripId, tripIds));
+      .where(inArray(packingItems.tripId, tripIds))
+      .orderBy(asc(packingItems.categoryId), asc(packingItems.name));
+    
+    return items;
   }
 
   async createPackingItem(item: InsertPackingItem & { tripId: number }): Promise<PackingItem> {
-    const result = await db.insert(packingItems).values(item);
-    const itemId = Number(result[0].insertId);
+    const result = await db.insert(packingItems).values({
+      name: item.name,
+      tripId: item.tripId,
+      categoryId: item.categoryId,
+      quantity: item.quantity,
+      isPacked: false
+    });
+    
+    const itemId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [newItem] = await db.select().from(packingItems).where(eq(packingItems.id, itemId));
     return newItem;
   }
 
   async updatePackingItem(id: number, itemData: Partial<InsertPackingItem & { isPacked: boolean }>): Promise<PackingItem> {
-    await db
-      .update(packingItems)
-      .set(itemData)
-      .where(eq(packingItems.id, id));
+    await db.update(packingItems).set(itemData).where(eq(packingItems.id, id));
     const [updatedItem] = await db.select().from(packingItems).where(eq(packingItems.id, id));
     return updatedItem;
   }
@@ -263,7 +322,12 @@ export class DatabaseStorage implements IStorage {
 
   // Packing categories operations
   async getPackingCategories(): Promise<PackingCategory[]> {
-    return await db.select().from(packingCategories);
+    const categories = await db
+      .select()
+      .from(packingCategories)
+      .orderBy(asc(packingCategories.name));
+    
+    return categories;
   }
 
   async getPackingCategory(id: number): Promise<PackingCategory | undefined> {
@@ -273,22 +337,24 @@ export class DatabaseStorage implements IStorage {
 
   async createPackingCategory(category: { name: string; color: string }): Promise<PackingCategory> {
     const result = await db.insert(packingCategories).values(category);
-    const categoryId = Number(result[0].insertId);
+    const categoryId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [newCategory] = await db.select().from(packingCategories).where(eq(packingCategories.id, categoryId));
     return newCategory;
   }
 
   // Trip tags operations
   async getTripTags(tripId: number): Promise<TripTag[]> {
-    return await db
+    const tags = await db
       .select()
       .from(tripTags)
       .where(eq(tripTags.tripId, tripId));
+    
+    return tags;
   }
 
   async createTripTag(tag: { tripId: number; name: string; color: string }): Promise<TripTag> {
     const result = await db.insert(tripTags).values(tag);
-    const tagId = Number(result[0].insertId);
+    const tagId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [newTag] = await db.select().from(tripTags).where(eq(tripTags.id, tagId));
     return newTag;
   }
@@ -299,15 +365,17 @@ export class DatabaseStorage implements IStorage {
 
   // Trip members operations
   async getTripMembers(tripId: number): Promise<TripMember[]> {
-    return await db
+    const members = await db
       .select()
       .from(tripMembers)
       .where(eq(tripMembers.tripId, tripId));
+    
+    return members;
   }
 
   async addTripMember(tripMember: { tripId: number; userId: number; role: string }): Promise<TripMember> {
     const result = await db.insert(tripMembers).values(tripMember);
-    const memberId = Number(result[0].insertId);
+    const memberId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [newMember] = await db.select().from(tripMembers).where(eq(tripMembers.id, memberId));
     return newMember;
   }
@@ -336,15 +404,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async saveWeatherCache(location: string, data: string): Promise<WeatherCache> {
+    const timestamp = new Date().toISOString();
     const result = await db
       .insert(weatherCache)
       .values({
         location,
         data,
-        timestamp: new Date()
+        timestamp
       });
     
-    const cacheId = Number(result[0].insertId);
+    const cacheId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [cache] = await db.select().from(weatherCache).where(eq(weatherCache.id, cacheId));
     return cache;
   }
