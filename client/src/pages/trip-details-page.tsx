@@ -14,23 +14,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Trip, Schedule, PackingItem, PackingCategory } from "@shared/schema";
 import { format } from "date-fns";
 import { getDaysArray } from "@/lib/utils";
+import { TripItinerary } from "@/components/trip-itinerary";
 
 export default function TripDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("schedule");
-  const [activeDay, setActiveDay] = useState<string | null>(null);
   
   // Fetch trip details
   const { data: trip, isLoading: tripLoading, error: tripError } = useQuery<Trip>({
     queryKey: [`/api/trips/${id}`],
-    enabled: !!id,
-  });
-
-  // Fetch schedules for this trip
-  const { data: schedules = [], isLoading: schedulesLoading } = useQuery<Schedule[]>({
-    queryKey: [`/api/trips/${id}/schedules`],
     enabled: !!id,
   });
 
@@ -118,19 +112,6 @@ export default function TripDetailsPage() {
     );
   }
 
-  // Prepare trip dates for the tabs
-  const tripDays = getDaysArray(new Date(trip.startDate), new Date(trip.endDate));
-  
-  // Set default active day if not set
-  if (!activeDay && tripDays.length > 0) {
-    setActiveDay(format(tripDays[0], 'yyyy-MM-dd'));
-  }
-
-  // Get schedules for the active day
-  const daySchedules = schedules.filter(
-    schedule => activeDay && format(new Date(schedule.day), 'yyyy-MM-dd') === activeDay
-  ).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-
   // Get category for each packing item
   const getCategory = (item: PackingItem) => {
     return packingCategories.find(category => category.id === item.categoryId) || null;
@@ -185,77 +166,8 @@ export default function TripDetailsPage() {
               </div>
               
               <TabsContent value="schedule" className="p-4 md:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-base font-semibold text-neutral-800">Daily Schedule</h4>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Activity
-                  </Button>
-                </div>
-
-                {/* Day selector tabs */}
-                <div className="border-b border-neutral-200 mb-4">
-                  <nav className="flex -mb-px overflow-x-auto">
-                    {tripDays.map((day, index) => {
-                      const dayStr = format(day, 'yyyy-MM-dd');
-                      const displayStr = `Day ${index + 1} (${format(day, 'MMM d')})`;
-                      return (
-                        <a 
-                          key={dayStr}
-                          href={`#${dayStr}`}
-                          className={`whitespace-nowrap py-2 px-3 border-b-2 font-medium text-sm mr-4
-                            ${activeDay === dayStr 
-                              ? 'border-primary text-primary' 
-                              : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                            }`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setActiveDay(dayStr);
-                          }}
-                        >
-                          {displayStr}
-                        </a>
-                      );
-                    })}
-                  </nav>
-                </div>
-
-                {/* Day schedule */}
-                <div className="space-y-4">
-                  {schedulesLoading ? (
-                    Array(3).fill(0).map((_, i) => (
-                      <div key={i} className="flex items-start p-3 border border-neutral-200 rounded-md animate-pulse">
-                        <div className="flex-shrink-0 w-16 mr-4">
-                          <div className="h-5 bg-gray-300 rounded"></div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="h-5 bg-gray-300 rounded w-1/2 mb-2"></div>
-                          <div className="h-4 bg-gray-300 rounded w-3/4"></div>
-                        </div>
-                      </div>
-                    ))
-                  ) : daySchedules.length > 0 ? (
-                    daySchedules.map(schedule => (
-                      <ScheduleItem 
-                        key={schedule.id} 
-                        schedule={schedule}
-                        onEdit={() => {}}
-                        onDelete={() => {}}
-                      />
-                    ))
-                  ) : (
-                    <div className="text-center py-6">
-                      <p className="text-neutral-500">No activities planned for this day.</p>
-                      <Button 
-                        variant="link" 
-                        className="mt-2"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add an activity
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                {/* New Itinerary Component */}
+                <TripItinerary tripId={parseInt(id)} />
               </TabsContent>
               
               <TabsContent value="packing" className="p-4 md:p-6">
