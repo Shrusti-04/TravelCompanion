@@ -27,11 +27,17 @@ export async function getWeatherForLocation(location: string): Promise<WeatherDa
 
     // Get fresh data from OpenWeatherMap API
     const apiKey = process.env.OPENWEATHER_API_KEY || "placeholder_key";
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&units=metric&appid=${apiKey}`;
+    
+    // Add fallback for empty or invalid locations
+    const safeLocation = location && location.trim() ? location : "London";
+    
+    console.log(`Fetching weather for location: "${safeLocation}" with API key length: ${apiKey.length}`);
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(safeLocation)}&units=metric&appid=${apiKey}`;
 
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Weather API error: ${response.statusText}`);
+      console.error(`Weather API error: Status=${response.status}, URL=${url.replace(apiKey, "API_KEY_HIDDEN")}`);
+      throw new Error(`Weather API error: ${response.statusText} (${response.status})`);
     }
 
     const data = await response.json() as any;
@@ -103,11 +109,17 @@ export async function getNextTripWeather(userId: number): Promise<WeatherData | 
 export async function getForecast(location: string): Promise<WeatherData[]> {
   try {
     const apiKey = process.env.OPENWEATHER_API_KEY || "placeholder_key";
-    const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(location)}&units=metric&appid=${apiKey}`;
+    
+    // Add fallback for empty or invalid locations
+    const safeLocation = location && location.trim() ? location : "London";
+    
+    console.log(`Fetching forecast for location: "${safeLocation}" with API key length: ${apiKey.length}`);
+    const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(safeLocation)}&units=metric&appid=${apiKey}`;
 
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Weather API error: ${response.statusText}`);
+      console.error(`Weather API error: Status=${response.status}, URL=${url.replace(apiKey, "API_KEY_HIDDEN")}`);
+      throw new Error(`Weather API error: ${response.statusText} (${response.status})`);
     }
 
     const data = await response.json() as any;
