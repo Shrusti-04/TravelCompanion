@@ -1,79 +1,79 @@
-import { mysqlTable, varchar, serial, int, boolean, date, timestamp, foreignKey, unique, text } from "drizzle-orm/mysql-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Users table
-export const users = mysqlTable("users", {
-  id: serial("id").primaryKey(),
-  username: varchar("username", { length: 255 }).notNull().unique(),
-  password: varchar("password", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
 });
 
 // Trips table
-export const trips = mysqlTable("trips", {
-  id: serial("id").primaryKey(),
-  userId: int("user_id").notNull().references(() => users.id),
-  name: varchar("name", { length: 255 }).notNull(),
-  destination: varchar("destination", { length: 255 }).notNull(),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
-  imageUrl: varchar("image_url", { length: 255 }),
+export const trips = sqliteTable("trips", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  destination: text("destination").notNull(),
+  startDate: text("start_date").notNull(), // Store as ISO string
+  endDate: text("end_date").notNull(), // Store as ISO string
+  imageUrl: text("image_url"),
   description: text("description"),
-  isShared: boolean("is_shared").default(false).notNull(),
+  isShared: integer("is_shared", { mode: "boolean" }).notNull().default(false),
 });
 
 // Trip tags table
-export const tripTags = mysqlTable("trip_tags", {
-  id: serial("id").primaryKey(),
-  tripId: int("trip_id").notNull().references(() => trips.id),
-  name: varchar("name", { length: 255 }).notNull(),
-  color: varchar("color", { length: 50 }).notNull(),
+export const tripTags = sqliteTable("trip_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
 });
 
 // Trip schedules table
-export const schedules = mysqlTable("schedules", {
-  id: serial("id").primaryKey(),
-  tripId: int("trip_id").notNull().references(() => trips.id),
-  day: date("day").notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  time: varchar("time", { length: 50 }),
-  location: varchar("location", { length: 255 }),
+export const schedules = sqliteTable("schedules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  day: text("day").notNull(), // Store as ISO string
+  title: text("title").notNull(),
+  time: text("time"),
+  location: text("location"),
   description: text("description"),
 });
 
 // Packing list categories
-export const packingCategories = mysqlTable("packing_categories", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  color: varchar("color", { length: 50 }).notNull(),
+export const packingCategories = sqliteTable("packing_categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
 });
 
 // Packing list items
-export const packingItems = mysqlTable("packing_items", {
-  id: serial("id").primaryKey(),
-  tripId: int("trip_id").notNull().references(() => trips.id),
-  categoryId: int("category_id").references(() => packingCategories.id),
-  name: varchar("name", { length: 255 }).notNull(),
-  isPacked: boolean("is_packed").default(false).notNull(),
-  quantity: int("quantity").default(1).notNull(),
+export const packingItems = sqliteTable("packing_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  categoryId: integer("category_id").references(() => packingCategories.id),
+  name: text("name").notNull(),
+  isPacked: integer("is_packed", { mode: "boolean" }).notNull().default(false),
+  quantity: integer("quantity").notNull().default(1),
 });
 
 // Trip members (for sharing)
-export const tripMembers = mysqlTable("trip_members", {
-  id: serial("id").primaryKey(),
-  tripId: int("trip_id").notNull().references(() => trips.id),
-  userId: int("user_id").notNull().references(() => users.id),
-  role: varchar("role", { length: 50 }).default("viewer").notNull(), // viewer, editor, owner
+export const tripMembers = sqliteTable("trip_members", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("viewer"), // viewer, editor, owner
 });
 
 // Weather data cache
-export const weatherCache = mysqlTable("weather_cache", {
-  id: serial("id").primaryKey(),
-  location: varchar("location", { length: 255 }).notNull(),
+export const weatherCache = sqliteTable("weather_cache", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  location: text("location").notNull(),
   data: text("data").notNull(), // JSON string
-  timestamp: timestamp("timestamp").notNull(),
+  timestamp: text("timestamp").notNull(), // Store as ISO string
 });
 
 // Schema validation for user insertion

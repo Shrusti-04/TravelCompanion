@@ -1,19 +1,8 @@
-import * as mysql from 'mysql2/promise';
-import { drizzle } from 'drizzle-orm/mysql2';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
 import * as schema from "@shared/schema";
 
-// MySQL database configuration with hardcoded credentials as specified
-const dbCredentials = {
-  host: "127.0.0.1",
-  user: "root",
-  password: "",
-  database: "travel_app3",
-  // Add these additional configuration options for better compatibility
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-};
-
-// Create connection pool
-export const pool = mysql.createPool(dbCredentials);
-export const db = drizzle(pool, { schema, mode: 'default' });
+// Use SQLite for development on Replit
+const sqlite = new Database('sqlite.db');
+export const db: BetterSQLite3Database<typeof schema> = drizzle(sqlite, { schema });
