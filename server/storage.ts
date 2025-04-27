@@ -111,7 +111,8 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await db.insert(users).values(insertUser);
-    const userId = Number(result.insertId);
+    // MySQL returns the last inserted ID directly
+    const userId = Number(result[0].insertId);
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
   }
@@ -142,7 +143,7 @@ export class DatabaseStorage implements IStorage {
 
   async createTrip(trip: InsertTrip & { userId: number }): Promise<Trip> {
     const result = await db.insert(trips).values(trip);
-    const tripId = Number(result.insertId);
+    const tripId = Number(result[0].insertId);
     const [newTrip] = await db.select().from(trips).where(eq(trips.id, tripId));
     return newTrip;
   }
@@ -197,7 +198,7 @@ export class DatabaseStorage implements IStorage {
 
   async createSchedule(schedule: InsertSchedule & { tripId: number }): Promise<Schedule> {
     const result = await db.insert(schedules).values(schedule);
-    const scheduleId = Number(result.insertId);
+    const scheduleId = Number(result[0].insertId);
     const [newSchedule] = await db.select().from(schedules).where(eq(schedules.id, scheduleId));
     return newSchedule;
   }
@@ -242,7 +243,7 @@ export class DatabaseStorage implements IStorage {
 
   async createPackingItem(item: InsertPackingItem & { tripId: number }): Promise<PackingItem> {
     const result = await db.insert(packingItems).values(item);
-    const itemId = Number(result.insertId);
+    const itemId = Number(result[0].insertId);
     const [newItem] = await db.select().from(packingItems).where(eq(packingItems.id, itemId));
     return newItem;
   }
@@ -272,7 +273,7 @@ export class DatabaseStorage implements IStorage {
 
   async createPackingCategory(category: { name: string; color: string }): Promise<PackingCategory> {
     const result = await db.insert(packingCategories).values(category);
-    const categoryId = Number(result.insertId);
+    const categoryId = Number(result[0].insertId);
     const [newCategory] = await db.select().from(packingCategories).where(eq(packingCategories.id, categoryId));
     return newCategory;
   }
@@ -287,7 +288,7 @@ export class DatabaseStorage implements IStorage {
 
   async createTripTag(tag: { tripId: number; name: string; color: string }): Promise<TripTag> {
     const result = await db.insert(tripTags).values(tag);
-    const tagId = Number(result.insertId);
+    const tagId = Number(result[0].insertId);
     const [newTag] = await db.select().from(tripTags).where(eq(tripTags.id, tagId));
     return newTag;
   }
@@ -306,7 +307,7 @@ export class DatabaseStorage implements IStorage {
 
   async addTripMember(tripMember: { tripId: number; userId: number; role: string }): Promise<TripMember> {
     const result = await db.insert(tripMembers).values(tripMember);
-    const memberId = Number(result.insertId);
+    const memberId = Number(result[0].insertId);
     const [newMember] = await db.select().from(tripMembers).where(eq(tripMembers.id, memberId));
     return newMember;
   }
@@ -335,15 +336,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async saveWeatherCache(location: string, data: string): Promise<WeatherCache> {
-    const [cache] = await db
+    const result = await db
       .insert(weatherCache)
       .values({
         location,
         data,
         timestamp: new Date()
-      })
-      .returning();
+      });
     
+    const cacheId = Number(result[0].insertId);
+    const [cache] = await db.select().from(weatherCache).where(eq(weatherCache.id, cacheId));
     return cache;
   }
 }
