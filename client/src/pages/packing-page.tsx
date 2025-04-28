@@ -11,12 +11,32 @@ import { Search, Plus, Package } from "lucide-react";
 import { PackingItem, PackingCategory, Trip } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogDescription 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function PackingPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTrip, setSelectedTrip] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState<string>("");
+  const [newItemQuantity, setNewItemQuantity] = useState("1");
 
   // Fetch trips
   const { data: trips = [], isLoading: tripsLoading } = useQuery<Trip[]>({
@@ -50,6 +70,49 @@ export default function PackingPage() {
       toast({
         title: "Error",
         description: `Failed to update item: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Add packing item mutation
+  const addItemMutation = useMutation({
+    mutationFn: async (data: { name: string; categoryId?: number; quantity: number }) => {
+      if (!selectedTrip) {
+        throw new Error("Please select a trip to add items to");
+      }
+      
+      const response = await apiRequest(
+        "POST", 
+        `/api/trips/${selectedTrip}/packing-items`, 
+        {
+          ...data,
+          isPacked: false
+        }
+      );
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/packing-items'] });
+      if (selectedTrip) {
+        queryClient.invalidateQueries({ queryKey: [`/api/trips/${selectedTrip}/packing-items`] });
+      }
+      
+      // Reset form values
+      setNewItemName("");
+      setNewItemCategory("");
+      setNewItemQuantity("1");
+      setAddItemDialogOpen(false);
+      
+      toast({
+        title: "Item Added",
+        description: "Item has been added to your packing list"
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to add item: ${error.message}`,
         variant: "destructive"
       });
     }
@@ -99,34 +162,8 @@ export default function PackingPage() {
                     });
                     return;
                   }
-                  const name = prompt("Enter item name:");
-                  if (!name) return;
-                  
-                  const categoryId = Number(prompt("Enter category ID (leave empty for none):") || "0") || undefined;
-                  const quantity = Number(prompt("Enter quantity (leave empty for 1):") || "1");
-                  
-                  // Create new packing item
-                  apiRequest("POST", `/api/trips/${selectedTrip}/packing-items`, {
-                    name,
-                    categoryId,
-                    quantity,
-                    isPacked: false
-                  })
-                  .then(() => {
-                    queryClient.invalidateQueries({ queryKey: ['/api/packing-items'] });
-                    queryClient.invalidateQueries({ queryKey: [`/api/trips/${selectedTrip}/packing-items`] });
-                    toast({
-                      title: "Item Added",
-                      description: `${name} has been added to your packing list`
-                    });
-                  })
-                  .catch(error => {
-                    toast({
-                      title: "Error",
-                      description: `Failed to add item: ${error.message}`,
-                      variant: "destructive"
-                    });
-                  });
+                  // Open the dialog to add a new item
+                  setAddItemDialogOpen(true);
                 }}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Item
@@ -260,6 +297,98 @@ export default function PackingPage() {
           </div>
         </div>
       </main>
+
+      {/* Add Item Dialog */}
+      <Dialog open={addItemDialogOpen} onOpenChange={setAddItemDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Packing Item</DialogTitle>
+            <DialogDescription>
+              Add a new item to your packing list for {
+                selectedTrip ? trips.find(t => t.id === selectedTrip)?.name : 'your trip'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="item-name" className="text-right">
+                Item Name
+              </Label>
+              <Input
+                id="item-name"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                className="col-span-3"
+                placeholder="T-shirt, passport, etc."
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="item-category" className="text-right">
+                Category
+              </Label>
+              <Select 
+                value={newItemCategory} 
+                onValueChange={setNewItemCategory}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="item-quantity" className="text-right">
+                Quantity
+              </Label>
+              <Input
+                id="item-quantity"
+                type="number"
+                min="1"
+                value={newItemQuantity}
+                onChange={(e) => setNewItemQuantity(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddItemDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (!newItemName.trim()) {
+                  toast({
+                    title: "Error",
+                    description: "Item name is required",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                
+                addItemMutation.mutate({
+                  name: newItemName.trim(),
+                  categoryId: newItemCategory ? Number(newItemCategory) : undefined,
+                  quantity: Number(newItemQuantity) || 1
+                });
+              }}
+              disabled={addItemMutation.isPending}
+            >
+              {addItemMutation.isPending ? "Adding..." : "Add Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
