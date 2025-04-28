@@ -50,7 +50,7 @@ export function TripItinerary({ tripId }: TripItineraryProps) {
 
   // Fetch itinerary items
   const { data: schedules = [], isLoading } = useQuery<Schedule[]>({
-    queryKey: ["/api/trips", tripId, "schedules"],
+    queryKey: [`/api/trips/${tripId}/schedules`],
     enabled: !!tripId,
   });
 
@@ -92,7 +92,7 @@ export function TripItinerary({ tripId }: TripItineraryProps) {
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trips", tripId, "schedules"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/trips/${tripId}/schedules`] });
       form.reset();
       setOpen(false);
       toast({
@@ -116,7 +116,7 @@ export function TripItinerary({ tripId }: TripItineraryProps) {
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trips", tripId, "schedules"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/trips/${tripId}/schedules`] });
       form.reset();
       setOpen(false);
       setEditingItem(null);
@@ -140,7 +140,7 @@ export function TripItinerary({ tripId }: TripItineraryProps) {
       await apiRequest("DELETE", `/api/schedules/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trips", tripId, "schedules"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/trips/${tripId}/schedules`] });
       toast({
         title: "Success",
         description: "Itinerary item deleted successfully",
