@@ -39,6 +39,7 @@ export default function DashboardPage() {
   // Fetch 7-day forecast (only when needed)
   const { data: forecast = [], isLoading: forecastLoading } = useQuery({
     queryKey: ['/api/weather/forecast', forecastLocation],
+    queryFn: () => fetch(`/api/weather/forecast/${encodeURIComponent(forecastLocation)}`).then(res => res.json()),
     enabled: forecastOpen && !!forecastLocation,
   });
 

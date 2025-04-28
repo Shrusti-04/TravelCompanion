@@ -15,7 +15,7 @@ import {
   TripTag,
   TripMember
 } from "@shared/schema";
-import { getWeatherForLocation, getNextTripWeather } from "./weather";
+import { getWeatherForLocation, getNextTripWeather, getForecast } from "./weather";
 
 // Helper function to ensure user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
@@ -625,6 +625,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(weather);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get 7-day forecast for a location
+  app.get("/api/weather/forecast/:location", isAuthenticated, async (req, res) => {
+    try {
+      const location = req.params.location;
+      if (!location) {
+        return res.status(400).json({ message: "Location is required" });
+      }
+      
+      console.log(`Fetching 7-day forecast for location: ${location}`);
+      const forecast = await getForecast(location);
+      res.json(forecast);
+    } catch (error: any) {
+      console.error("Error fetching forecast:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch forecast data" });
     }
   });
 
