@@ -171,7 +171,7 @@ export default function SchedulePage() {
                       selected={selectedDate}
                       onSelect={(date) => date && setSelectedDate(date)}
                       className="rounded-md border"
-                      highlightedDays={getActivityDates()}
+                      initialFocus
                     />
                   </CardContent>
                 </Card>
@@ -249,7 +249,19 @@ export default function SchedulePage() {
                           Start by adding activities to your schedule.
                         </p>
                         <div className="mt-6">
-                          <Button>
+                          <Button
+                            onClick={() => {
+                              if (!selectedTrip) {
+                                toast({
+                                  title: "Trip Required",
+                                  description: "Please select a trip to add an activity to",
+                                  variant: "destructive"
+                                });
+                                return;
+                              }
+                              setAddActivityDialogOpen(true);
+                            }}
+                          >
                             <Plus className="h-4 w-4 mr-1" />
                             Add Activity
                           </Button>
@@ -263,6 +275,118 @@ export default function SchedulePage() {
           </div>
         </div>
       </main>
+
+      {/* Add Activity Dialog */}
+      <Dialog open={addActivityDialogOpen} onOpenChange={setAddActivityDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Activity</DialogTitle>
+            <DialogDescription>
+              Add a new activity to your schedule for {format(selectedDate, "MMMM d, yyyy")}
+              {selectedTrip ? ` (${trips.find(t => t.id === selectedTrip)?.name})` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="activity-title" className="text-right">
+                Title
+              </Label>
+              <Input
+                id="activity-title"
+                value={activityTitle}
+                onChange={(e) => setActivityTitle(e.target.value)}
+                className="col-span-3"
+                placeholder="Meeting, Tour, etc."
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="activity-time" className="text-right">
+                Time
+              </Label>
+              <Input
+                id="activity-time"
+                value={activityTime}
+                onChange={(e) => setActivityTime(e.target.value)}
+                className="col-span-3"
+                placeholder="e.g. 9:00 AM"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="activity-location" className="text-right">
+                Location
+              </Label>
+              <Input
+                id="activity-location"
+                value={activityLocation}
+                onChange={(e) => setActivityLocation(e.target.value)}
+                className="col-span-3"
+                placeholder="Address or venue name"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="activity-description" className="text-right">
+                Description
+              </Label>
+              <Textarea
+                id="activity-description"
+                value={activityDescription}
+                onChange={(e) => setActivityDescription(e.target.value)}
+                className="col-span-3"
+                placeholder="Additional details..."
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setAddActivityDialogOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (!activityTitle.trim()) {
+                  toast({
+                    title: "Error",
+                    description: "Activity title is required",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                
+                if (!selectedTrip) {
+                  toast({
+                    title: "Error",
+                    description: "Please select a trip",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                
+                addActivityMutation.mutate({
+                  tripId: selectedTrip,
+                  title: activityTitle.trim(),
+                  day: selectedDate.toISOString(),
+                  time: activityTime.trim() || undefined,
+                  location: activityLocation.trim() || undefined,
+                  description: activityDescription.trim() || undefined
+                });
+              }}
+              disabled={addActivityMutation.isPending}
+            >
+              {addActivityMutation.isPending ? "Adding..." : "Add Activity"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
