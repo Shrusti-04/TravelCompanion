@@ -97,6 +97,58 @@ export default function SchedulePage() {
     },
   });
   
+  // Update activity mutation
+  const updateActivityMutation = useMutation({
+    mutationFn: async ({ id, data }: { 
+      id: number;
+      data: { 
+        title: string; 
+        day: string; 
+        time?: string; 
+        location?: string; 
+        description?: string;
+      }
+    }) => {
+      const response = await apiRequest("PATCH", `/api/schedules/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/schedules'] });
+      toast({
+        title: "Activity Updated",
+        description: "The activity has been updated in your schedule",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update activity",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete activity mutation
+  const deleteActivityMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/schedules/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/schedules'] });
+      toast({
+        title: "Activity Deleted",
+        description: "The activity has been removed from your schedule",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete activity",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Reset form fields
   const resetForm = () => {
     setActivityTitle("");
