@@ -29,6 +29,7 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTrip, setSelectedTrip] = useState<number | null>(null);
   const [addActivityDialogOpen, setAddActivityDialogOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   
   // Form states
   const [activityTitle, setActivityTitle] = useState("");
@@ -155,6 +156,7 @@ export default function SchedulePage() {
     setActivityTime("");
     setActivityLocation("");
     setActivityDescription("");
+    setEditingSchedule(null);
   };
 
   return (
@@ -286,8 +288,23 @@ export default function SchedulePage() {
                               )}
                               <ScheduleItem 
                                 schedule={schedule}
-                                onEdit={() => {}}
-                                onDelete={() => {}}
+                                onEdit={(schedule) => {
+                                  setSelectedTrip(schedule.tripId);
+                                  setSelectedDate(new Date(schedule.day));
+                                  setActivityTitle(schedule.title);
+                                  setActivityTime(schedule.time || "");
+                                  setActivityLocation(schedule.location || "");
+                                  setActivityDescription(schedule.description || "");
+                                  setAddActivityDialogOpen(true);
+                                  
+                                  // Store the schedule ID for update
+                                  setEditingSchedule(schedule);
+                                }}
+                                onDelete={(id) => {
+                                  if (confirm("Are you sure you want to delete this activity?")) {
+                                    deleteActivityMutation.mutate(id);
+                                  }
+                                }}
                               />
                             </div>
                           );
@@ -329,12 +346,23 @@ export default function SchedulePage() {
       </main>
 
       {/* Add Activity Dialog */}
-      <Dialog open={addActivityDialogOpen} onOpenChange={setAddActivityDialogOpen}>
+      <Dialog 
+        open={addActivityDialogOpen} 
+        onOpenChange={(open) => {
+          setAddActivityDialogOpen(open);
+          if (!open) {
+            resetForm();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Activity</DialogTitle>
+            <DialogTitle>{editingSchedule ? "Edit Activity" : "Add Activity"}</DialogTitle>
             <DialogDescription>
-              Add a new activity to your schedule for {format(selectedDate, "MMMM d, yyyy")}
+              {editingSchedule 
+                ? `Edit activity for ${format(selectedDate, "MMMM d, yyyy")}`
+                : `Add a new activity to your schedule for ${format(selectedDate, "MMMM d, yyyy")}`
+              }
               {selectedTrip ? ` (${trips.find(t => t.id === selectedTrip)?.name})` : ""}
             </DialogDescription>
           </DialogHeader>
@@ -423,18 +451,34 @@ export default function SchedulePage() {
                   return;
                 }
                 
-                addActivityMutation.mutate({
+                const activityData = {
                   tripId: selectedTrip,
                   title: activityTitle.trim(),
                   day: selectedDate.toISOString(),
                   time: activityTime.trim() || undefined,
                   location: activityLocation.trim() || undefined,
                   description: activityDescription.trim() || undefined
-                });
+                };
+                
+                if (editingSchedule) {
+                  // Update existing activity
+                  updateActivityMutation.mutate({
+                    id: editingSchedule.id,
+                    data: activityData
+                  });
+                  setAddActivityDialogOpen(false);
+                  resetForm();
+                } else {
+                  // Add new activity
+                  addActivityMutation.mutate(activityData);
+                }
               }}
-              disabled={addActivityMutation.isPending}
+              disabled={addActivityMutation.isPending || updateActivityMutation.isPending}
             >
-              {addActivityMutation.isPending ? "Adding..." : "Add Activity"}
+              {editingSchedule 
+                ? (updateActivityMutation.isPending ? "Updating..." : "Update Activity")
+                : (addActivityMutation.isPending ? "Adding..." : "Add Activity")
+              }
             </Button>
           </DialogFooter>
         </DialogContent>
