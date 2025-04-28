@@ -76,7 +76,16 @@ export async function getNextTripWeather(userId: number): Promise<WeatherData | 
   try {
     // Get user's trips, sorted by start date (ascending)
     const trips = await storage.getTripsByUser(userId);
-    if (!trips.length) return null;
+    if (!trips.length) {
+      console.log("No trips found for user:", userId);
+      return {
+        temperature: 25,
+        condition: "Unknown",
+        location: "No upcoming trips",
+        date: new Date().toISOString().split('T')[0],
+        icon: "01d"
+      };
+    }
 
     // Sort trips by start date
     const sortedTrips = [...trips].sort((a, b) => {
@@ -93,13 +102,24 @@ export async function getNextTripWeather(userId: number): Promise<WeatherData | 
       return startDate >= today;
     });
 
-    if (!nextTrip) return null;
+    if (!nextTrip) {
+      console.log("No upcoming trips found for user:", userId);
+      // Return the most recently created trip as fallback
+      return await getWeatherForLocation(sortedTrips[0].destination);
+    }
 
+    console.log("Found next trip destination:", nextTrip.destination);
     // Get weather for the trip destination
     return await getWeatherForLocation(nextTrip.destination);
   } catch (error) {
     console.error("Error getting next trip weather:", error);
-    return null;
+    return {
+      temperature: 25,
+      condition: "Unknown",
+      location: "Error fetching data",
+      date: new Date().toISOString().split('T')[0],
+      icon: "01d"
+    };
   }
 }
 

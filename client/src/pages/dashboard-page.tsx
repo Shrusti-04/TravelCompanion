@@ -7,14 +7,18 @@ import { Button } from "@/components/ui/button";
 import { WeatherCard } from "@/components/ui/weather-card";
 import { TripCard } from "@/components/ui/trip-card";
 import { CreateTripDialog } from "@/components/create-trip-dialog";
-import { Plus } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, Plus } from "lucide-react";
 import { Trip, TripTag } from "@shared/schema";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [createTripOpen, setCreateTripOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [forecastOpen, setForecastOpen] = useState(false);
+  const [forecastLocation, setForecastLocation] = useState("");
 
   // Fetch trips
   const { data: trips = [], isLoading: tripsLoading } = useQuery<Trip[]>({
@@ -30,6 +34,12 @@ export default function DashboardPage() {
   const { data: weather, isLoading: weatherLoading } = useQuery({
     queryKey: ['/api/weather/next-trip'],
     enabled: trips.length > 0,
+  });
+  
+  // Fetch 7-day forecast (only when needed)
+  const { data: forecast = [], isLoading: forecastLoading } = useQuery({
+    queryKey: ['/api/weather/forecast', forecastLocation],
+    enabled: forecastOpen && !!forecastLocation,
   });
 
   // Filter trips based on search term
@@ -93,10 +103,74 @@ export default function DashboardPage() {
               <WeatherCard 
                 trip={nextTrip}
                 weatherData={weather}
-                onForecastClick={() => {}}
+                onForecastClick={() => {
+                  setForecastLocation(nextTrip.destination);
+                  setForecastOpen(true);
+                }}
                 isLoading={weatherLoading}
               />
             )}
+            
+            {/* 7-day Forecast Modal */}
+            <Dialog open={forecastOpen} onOpenChange={setForecastOpen}>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>7-Day Weather Forecast for {forecastLocation}</DialogTitle>
+                </DialogHeader>
+                
+                {forecastLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                    {Array(7).fill(0).map((_, i) => (
+                      <Card key={i} className="animate-pulse">
+                        <CardContent className="p-4">
+                          <div className="h-10 w-10 bg-gray-200 rounded-full mx-auto mb-2"></div>
+                          <div className="h-5 bg-gray-200 rounded mb-2 mx-auto w-16"></div>
+                          <div className="h-4 bg-gray-200 rounded mb-1 w-full"></div>
+                          <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : forecast.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                    {forecast.map((day, index) => (
+                      <Card key={index} className="overflow-hidden">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-center text-base font-medium">
+                            {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0 text-center">
+                          <div className="mb-1">
+                            {(() => {
+                              const condition = day.condition.toLowerCase();
+                              if (condition.includes('sun') || condition.includes('clear')) 
+                                return <Sun className="h-10 w-10 text-yellow-500 mx-auto" />;
+                              if (condition.includes('rain')) 
+                                return <CloudRain className="h-10 w-10 text-blue-500 mx-auto" />;
+                              if (condition.includes('snow')) 
+                                return <CloudSnow className="h-10 w-10 text-blue-300 mx-auto" />;
+                              if (condition.includes('thunder') || condition.includes('lightning')) 
+                                return <CloudLightning className="h-10 w-10 text-purple-500 mx-auto" />;
+                              if (condition.includes('drizzle')) 
+                                return <CloudDrizzle className="h-10 w-10 text-blue-400 mx-auto" />;
+                              return <Cloud className="h-10 w-10 text-gray-400 mx-auto" />;
+                            })()}
+                          </div>
+                          <p className="text-2xl font-bold">{day.temperature}°C</p>
+                          <p className="text-sm text-neutral-500">{day.condition}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p>No forecast data available for this location.</p>
+                    <Button onClick={() => setForecastOpen(false)} className="mt-4">Close</Button>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
 
             {/* Upcoming Trips */}
             <h3 className="text-lg font-semibold text-neutral-800 mb-4">Upcoming Trips</h3>
