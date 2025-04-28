@@ -199,6 +199,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  app.post("/api/schedules", isAuthenticated, async (req, res) => {
+    try {
+      const { tripId, ...scheduleData } = insertScheduleSchema.parse(req.body);
+      
+      // Verify the trip exists and user has access
+      const trip = await storage.getTrip(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Check if user owns this trip or has editor role
+      if (trip.userId !== req.user!.id) {
+        const members = await storage.getTripMembers(trip.id);
+        const isEditor = members.some(member => 
+          member.userId === req.user!.id && 
+          (member.role === "editor" || member.role === "owner")
+        );
+        
+        if (!isEditor) {
+          return res.status(403).json({ message: "Not authorized to add schedules to this trip" });
+        }
+      }
+
+      const newSchedule = await storage.createSchedule({
+        ...scheduleData,
+        tripId
+      });
+      
+      res.status(201).json(newSchedule);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   app.get("/api/trips/:id/schedules", isAuthenticated, async (req, res) => {
     try {
@@ -340,6 +377,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const items = await storage.getPackingItemsByUser(req.user!.id);
       res.json(items);
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.post("/api/packing-items", isAuthenticated, async (req, res) => {
+    try {
+      const { tripId, ...itemData } = insertPackingItemSchema.parse(req.body);
+      
+      // Verify the trip exists and user has access
+      const trip = await storage.getTrip(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Check if user owns this trip or has editor role
+      if (trip.userId !== req.user!.id) {
+        const members = await storage.getTripMembers(trip.id);
+        const isEditor = members.some(member => 
+          member.userId === req.user!.id && 
+          (member.role === "editor" || member.role === "owner")
+        );
+        
+        if (!isEditor) {
+          return res.status(403).json({ message: "Not authorized to add packing items to this trip" });
+        }
+      }
+
+      const newItem = await storage.createPackingItem({
+        ...itemData,
+        tripId
+      });
+      
+      res.status(201).json(newItem);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
       res.status(500).json({ message: error.message });
     }
   });
