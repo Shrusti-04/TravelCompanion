@@ -90,7 +90,44 @@ export default function PackingPage() {
                 Packing List
               </h2>
               <div className="mt-4 md:mt-0">
-                <Button>
+                <Button onClick={() => {
+                  if (!selectedTrip) {
+                    toast({
+                      title: "Trip Required",
+                      description: "Please select a trip to add items to",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  const name = prompt("Enter item name:");
+                  if (!name) return;
+                  
+                  const categoryId = Number(prompt("Enter category ID (leave empty for none):") || "0") || undefined;
+                  const quantity = Number(prompt("Enter quantity (leave empty for 1):") || "1");
+                  
+                  // Create new packing item
+                  apiRequest("POST", `/api/trips/${selectedTrip}/packing-items`, {
+                    name,
+                    categoryId,
+                    quantity,
+                    isPacked: false
+                  })
+                  .then(() => {
+                    queryClient.invalidateQueries({ queryKey: ['/api/packing-items'] });
+                    queryClient.invalidateQueries({ queryKey: [`/api/trips/${selectedTrip}/packing-items`] });
+                    toast({
+                      title: "Item Added",
+                      description: `${name} has been added to your packing list`
+                    });
+                  })
+                  .catch(error => {
+                    toast({
+                      title: "Error",
+                      description: `Failed to add item: ${error.message}`,
+                      variant: "destructive"
+                    });
+                  });
+                }}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Item
                 </Button>
