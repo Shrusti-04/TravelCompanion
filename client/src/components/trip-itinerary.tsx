@@ -337,7 +337,7 @@ export function TripItinerary({ tripId }: TripItineraryProps) {
           </CardContent>
         </Card>
       ) : (
-        <ScrollArea className="h-[600px] pr-4 overflow-y-auto touch-auto">
+        <ScrollArea className="h-[70vh] max-h-[600px] pr-4 overflow-y-auto touch-auto overscroll-contain">
           {tripDays.map((day) => {
             const dayKey = day.toDateString();
             const dayItems = schedulesByDay[dayKey] || [];

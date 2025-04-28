@@ -47,6 +47,13 @@
 --radius: 0.5rem;
   }
 
+/* Improve scrolling behavior across the application */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+}
+
 @layer base {
   * {
     @apply border-border;
