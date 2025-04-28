@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,13 +7,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { ScheduleItem } from "@/components/ui/schedule-item";
-import { Plus, Calendar as CalendarIcon } from "lucide-react";
-import { Trip, Schedule } from "@shared/schema";
+import { Plus, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Trip, Schedule, InsertSchedule } from "@shared/schema";
 import { format, isSameDay } from "date-fns";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogDescription 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SchedulePage() {
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTrip, setSelectedTrip] = useState<number | null>(null);
+  const [addActivityDialogOpen, setAddActivityDialogOpen] = useState(false);
+  
+  // Form states
+  const [activityTitle, setActivityTitle] = useState("");
+  const [activityTime, setActivityTime] = useState("");
+  const [activityLocation, setActivityLocation] = useState("");
+  const [activityDescription, setActivityDescription] = useState("");
 
   // Fetch trips
   const { data: trips = [], isLoading: tripsLoading } = useQuery<Trip[]>({
@@ -44,6 +65,45 @@ export default function SchedulePage() {
       
     return filteredSchedules.map(s => new Date(s.day));
   };
+  
+  // Add activity mutation
+  const addActivityMutation = useMutation({
+    mutationFn: async (activityData: { 
+      tripId: number; 
+      title: string; 
+      day: string; 
+      time?: string; 
+      location?: string; 
+      description?: string 
+    }) => {
+      const response = await apiRequest("POST", "/api/schedules", activityData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/schedules'] });
+      setAddActivityDialogOpen(false);
+      resetForm();
+      toast({
+        title: "Activity Added",
+        description: "The activity has been added to your schedule",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to add activity",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Reset form fields
+  const resetForm = () => {
+    setActivityTitle("");
+    setActivityTime("");
+    setActivityLocation("");
+    setActivityDescription("");
+  };
 
   return (
     <div className="flex h-screen bg-neutral-100">
@@ -61,7 +121,17 @@ export default function SchedulePage() {
                 Schedule
               </h2>
               <div className="mt-4 md:mt-0">
-                <Button>
+                <Button onClick={() => {
+                  if (!selectedTrip) {
+                    toast({
+                      title: "Trip Required",
+                      description: "Please select a trip to add an activity to",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  setAddActivityDialogOpen(true);
+                }}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Activity
                 </Button>
@@ -115,7 +185,21 @@ export default function SchedulePage() {
                       <h3 className="text-lg font-semibold">
                         {format(selectedDate, "EEEE, MMMM d, yyyy")}
                       </h3>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          if (!selectedTrip) {
+                            toast({
+                              title: "Trip Required",
+                              description: "Please select a trip to add an activity to",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          setAddActivityDialogOpen(true);
+                        }}
+                      >
                         <Plus className="h-4 w-4 mr-1" />
                         Add Activity
                       </Button>
