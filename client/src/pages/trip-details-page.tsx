@@ -130,7 +130,7 @@ export default function TripDetailsPage() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <Header />
         
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
           <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-neutral-800">
