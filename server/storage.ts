@@ -35,6 +35,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User>;
 
   // Trip operations
   getTrip(id: number): Promise<Trip | undefined>;
@@ -115,6 +116,12 @@ export class DatabaseStorage implements IStorage {
     const userId = db.get(sql`SELECT last_insert_rowid() as id`).id;
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
+  }
+
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User> {
+    await db.update(users).set(userData).where(eq(users.id, id));
+    const [updatedUser] = await db.select().from(users).where(eq(users.id, id));
+    return updatedUser;
   }
 
   // Trip operations

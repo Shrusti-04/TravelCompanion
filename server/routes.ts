@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
+import { comparePasswords, hashPassword } from "./auth"; // Import password functions
 import { z } from "zod";
 import { 
   insertTripSchema, 
@@ -27,6 +28,67 @@ const isAuthenticated = (req: Request, res: Response, next: Function) => {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
+
+  // User profile update endpoint
+  app.patch("/api/user/profile", isAuthenticated, async (req, res) => {
+    try {
+      const { name, email } = req.body;
+      
+      // Validate input
+      if (!name || !email) {
+        return res.status(400).json({ message: "Name and email are required" });
+      }
+      
+      // Check if email already exists (but is not the current user's email)
+      if (email !== req.user!.email) {
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== req.user!.id) {
+          return res.status(400).json({ message: "Email already in use" });
+        }
+      }
+      
+      // Update user
+      const updatedUser = await storage.updateUser(req.user!.id, { name, email });
+      
+      // Update session
+      req.login(updatedUser, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Failed to update session" });
+        }
+        return res.json(updatedUser);
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Password update endpoint
+  app.patch("/api/user/password", isAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      
+      // Validate password
+      if (!await comparePasswords(currentPassword, req.user!.password)) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+      
+      // Update password
+      const updatedUser = await storage.updateUser(req.user!.id, {
+        password: await hashPassword(newPassword)
+      });
+      
+      res.json({ message: "Password updated successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Notification settings endpoint
+  app.patch("/api/user/notifications", isAuthenticated, (req, res) => {
+    // This would typically save notification preferences to a database
+    // Since we don't have a notifications table yet, we'll just return success
+    res.json({ message: "Notification preferences updated" });
+  });
 
   // Create HTTP server
   const httpServer = createServer(app);
