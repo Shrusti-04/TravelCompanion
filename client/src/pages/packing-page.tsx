@@ -336,7 +336,7 @@ export default function PackingPage() {
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {categories.map(category => (
                     <SelectItem key={category.id} value={category.id.toString()}>
                       {category.name}
@@ -378,7 +378,7 @@ export default function PackingPage() {
                 
                 addItemMutation.mutate({
                   name: newItemName.trim(),
-                  categoryId: newItemCategory ? Number(newItemCategory) : undefined,
+                  categoryId: newItemCategory && newItemCategory !== "none" ? Number(newItemCategory) : undefined,
                   quantity: Number(newItemQuantity) || 1
                 });
               }}
