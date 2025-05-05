@@ -102,7 +102,7 @@ export const insertScheduleSchema = createInsertSchema(schedules, {
 export const insertPackingItemSchema = createInsertSchema(packingItems, {
   name: z.string().min(2, "Item name must be at least 2 characters"),
   quantity: z.number().min(1, "Quantity must be at least 1"),
-}).omit({ id: true, isPacked: true });
+}).omit({ id: true, isPacked: true, tripId: true });
 
 // Export types
 export type User = typeof users.$inferSelect;
