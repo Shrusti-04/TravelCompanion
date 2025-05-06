@@ -56,8 +56,8 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Serve the app on port 5001 to avoid conflicts
-  const port = 5001;
+  // Use PORT from environment variable for production, fallback to 5001 for development
+  const port = process.env.PORT || 5001;
   server.listen(
     {
       port,

@@ -1,7 +1,7 @@
 services:
   - type: web
     name: travelcompanion-api
-    env: node
+    runtime: node
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
@@ -12,16 +12,20 @@ services:
           name: travelcompanion-db
           property: connectionString
 
-  - type: web
+  - type: static
     name: travelcompanion-frontend
+    runtime: static
     buildCommand: cd client && npm install && npm run build
-    staticPublishPath: ./client/dist
+    staticPublishPath: client/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
         fromService:
           name: travelcompanion-api
-          type: web
-          property: url
+          property: host
 
 databases:
   - name: travelcompanion-db
