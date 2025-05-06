@@ -4,18 +4,23 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { comparePasswords, hashPassword } from "./auth"; // Import password functions
 import { z } from "zod";
-import { 
-  insertTripSchema, 
-  insertScheduleSchema, 
+import { db } from "./db";
+import {
+  insertTripSchema,
+  insertScheduleSchema,
   insertPackingItemSchema,
   Trip,
   Schedule,
   PackingItem,
   PackingCategory,
   TripTag,
-  TripMember
+  TripMember,
 } from "@shared/schema";
-import { getWeatherForLocation, getNextTripWeather, getForecast } from "./weather";
+import {
+  getWeatherForLocation,
+  getNextTripWeather,
+  getForecast,
+} from "./weather";
 
 // Helper function to ensure user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
@@ -23,6 +28,24 @@ const isAuthenticated = (req: Request, res: Response, next: Function) => {
     return next();
   }
   res.status(401).json({ message: "Unauthorized" });
+};
+
+// Helper to validate and convert date to SQL datetime format
+const parseDateToSQL = (val: any): string => {
+  if (typeof val === "string") {
+    // If it's already a string, try to parse it
+    const date = new Date(val);
+    if (isNaN(date.getTime())) {
+      throw new Error("Invalid date format");
+    }
+    return date.toISOString().slice(0, 19).replace("T", " ");
+  } else if (val instanceof Date) {
+    if (isNaN(val.getTime())) {
+      throw new Error("Invalid date format");
+    }
+    return val.toISOString().slice(0, 19).replace("T", " ");
+  }
+  throw new Error("Invalid date format: must be a Date object or date string");
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -33,12 +56,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/profile", isAuthenticated, async (req, res) => {
     try {
       const { name, email } = req.body;
-      
+
       // Validate input
       if (!name || !email) {
         return res.status(400).json({ message: "Name and email are required" });
       }
-      
+
       // Check if email already exists (but is not the current user's email)
       if (email !== req.user!.email) {
         const existingUser = await storage.getUserByEmail(email);
@@ -46,10 +69,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Email already in use" });
         }
       }
-      
+
       // Update user
-      const updatedUser = await storage.updateUser(req.user!.id, { name, email });
-      
+      const updatedUser = await storage.updateUser(req.user!.id, {
+        name,
+        email,
+      });
+
       // Update session
       req.login(updatedUser, (err) => {
         if (err) {
@@ -66,17 +92,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/password", isAuthenticated, async (req, res) => {
     try {
       const { currentPassword, newPassword } = req.body;
-      
+
       // Validate password
-      if (!await comparePasswords(currentPassword, req.user!.password)) {
-        return res.status(401).json({ message: "Current password is incorrect" });
+      if (!(await comparePasswords(currentPassword, req.user!.password))) {
+        return res
+          .status(401)
+          .json({ message: "Current password is incorrect" });
       }
-      
+
       // Update password
       const updatedUser = await storage.updateUser(req.user!.id, {
-        password: await hashPassword(newPassword)
+        password: await hashPassword(newPassword),
       });
-      
+
       res.json({ message: "Password updated successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -115,10 +143,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user owns this trip or is a member
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(tripId);
-        const isMember = members.some(member => member.userId === req.user!.id);
-        
+        const isMember = members.some(
+          (member) => member.userId === req.user!.id
+        );
+
         if (!isMember) {
-          return res.status(403).json({ message: "Not authorized to view this trip" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to view this trip" });
         }
       }
 
@@ -133,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tripData = insertTripSchema.parse(req.body);
       const newTrip = await storage.createTrip({
         ...tripData,
-        userId: req.user!.id
+        userId: req.user!.id,
       });
       res.status(201).json(newTrip);
     } catch (error: any) {
@@ -155,7 +187,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user owns this trip
       if (trip.userId !== req.user!.id) {
-        return res.status(403).json({ message: "Not authorized to update this trip" });
+        return res
+          .status(403)
+          .json({ message: "Not authorized to update this trip" });
       }
 
       const tripData = insertTripSchema.partial().parse(req.body);
@@ -180,7 +214,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user owns this trip
       if (trip.userId !== req.user!.id) {
-        return res.status(403).json({ message: "Not authorized to delete this trip" });
+        return res
+          .status(403)
+          .json({ message: "Not authorized to delete this trip" });
       }
 
       await storage.deleteTrip(tripId);
@@ -199,11 +235,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
-  
+
   app.post("/api/schedules", isAuthenticated, async (req, res) => {
     try {
       const { tripId, ...scheduleData } = insertScheduleSchema.parse(req.body);
-      
+
       // Verify the trip exists and user has access
       const trip = await storage.getTrip(tripId);
       if (!trip) {
@@ -213,21 +249,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user owns this trip or has editor role
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(trip.id);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
+        const isEditor = members.some(
+          (member) =>
+            member.userId === req.user!.id &&
+            (member.role === "editor" || member.role === "owner")
         );
-        
+
         if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to add schedules to this trip" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to add schedules to this trip" });
         }
       }
 
       const newSchedule = await storage.createSchedule({
         ...scheduleData,
-        tripId
+        tripId,
       });
-      
+
       res.status(201).json(newSchedule);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -249,10 +288,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user owns this trip or is a member
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(tripId);
-        const isMember = members.some(member => member.userId === req.user!.id);
-        
+        const isMember = members.some(
+          (member) => member.userId === req.user!.id
+        );
+
         if (!isMember) {
-          return res.status(403).json({ message: "Not authorized to view this trip's schedules" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to view this trip's schedules" });
         }
       }
 
@@ -275,20 +318,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user owns this trip or has editor role
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(tripId);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
+        const isEditor = members.some(
+          (member) =>
+            member.userId === req.user!.id &&
+            (member.role === "editor" || member.role === "owner")
         );
-        
+
         if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to add schedules to this trip" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to add schedules to this trip" });
         }
       }
 
       const scheduleData = insertScheduleSchema.parse(req.body);
       const newSchedule = await storage.createSchedule({
         ...scheduleData,
-        tripId
+        tripId,
       });
       res.status(201).json(newSchedule);
     } catch (error: any) {
@@ -316,18 +362,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(trip.id);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
+        const isEditor = members.some(
+          (member) =>
+            member.userId === req.user!.id &&
+            (member.role === "editor" || member.role === "owner")
         );
-        
+
         if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to update this schedule" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to update this schedule" });
         }
       }
 
       const scheduleData = insertScheduleSchema.partial().parse(req.body);
-      const updatedSchedule = await storage.updateSchedule(scheduleId, scheduleData);
+      const updatedSchedule = await storage.updateSchedule(
+        scheduleId,
+        scheduleData
+      );
       res.json(updatedSchedule);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -354,13 +406,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(trip.id);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
+        const isEditor = members.some(
+          (member) =>
+            member.userId === req.user!.id &&
+            (member.role === "editor" || member.role === "owner")
         );
-        
+
         if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to delete this schedule" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to delete this schedule" });
         }
       }
 
@@ -380,11 +435,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
-  
+
   app.post("/api/packing-items", isAuthenticated, async (req, res) => {
     try {
       const { tripId, ...itemData } = insertPackingItemSchema.parse(req.body);
-      
+
       // Verify the trip exists and user has access
       const trip = await storage.getTrip(tripId);
       if (!trip) {
@@ -394,21 +449,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user owns this trip or has editor role
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(trip.id);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
+        const isEditor = members.some(
+          (member) =>
+            member.userId === req.user!.id &&
+            (member.role === "editor" || member.role === "owner")
         );
-        
+
         if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to add packing items to this trip" });
+          return res.status(403).json({
+            message: "Not authorized to add packing items to this trip",
+          });
         }
       }
 
       const newItem = await storage.createPackingItem({
         ...itemData,
-        tripId
+        tripId,
       });
-      
+
       res.status(201).json(newItem);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -430,10 +488,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user owns this trip or is a member
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(tripId);
-        const isMember = members.some(member => member.userId === req.user!.id);
-        
+        const isMember = members.some(
+          (member) => member.userId === req.user!.id
+        );
+
         if (!isMember) {
-          return res.status(403).json({ message: "Not authorized to view this trip's packing items" });
+          return res.status(403).json({
+            message: "Not authorized to view this trip's packing items",
+          });
         }
       }
 
@@ -444,41 +506,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/trips/:id/packing-items", isAuthenticated, async (req, res) => {
-    try {
-      const tripId = parseInt(req.params.id);
-      const trip = await storage.getTrip(tripId);
+  app.post(
+    "/api/trips/:id/packing-items",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const tripId = parseInt(req.params.id);
+        const trip = await storage.getTrip(tripId);
 
-      if (!trip) {
-        return res.status(404).json({ message: "Trip not found" });
-      }
-
-      // Check if user owns this trip or has editor role
-      if (trip.userId !== req.user!.id) {
-        const members = await storage.getTripMembers(tripId);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
-        );
-        
-        if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to add packing items to this trip" });
+        if (!trip) {
+          return res.status(404).json({ message: "Trip not found" });
         }
-      }
 
-      const itemData = insertPackingItemSchema.parse(req.body);
-      const newItem = await storage.createPackingItem({
-        ...itemData,
-        tripId
-      });
-      res.status(201).json(newItem);
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors });
+        // Check if user owns this trip or has editor role
+        if (trip.userId !== req.user!.id) {
+          const members = await storage.getTripMembers(tripId);
+          const isEditor = members.some(
+            (member) =>
+              member.userId === req.user!.id &&
+              (member.role === "editor" || member.role === "owner")
+          );
+
+          if (!isEditor) {
+            return res.status(403).json({
+              message: "Not authorized to add packing items to this trip",
+            });
+          }
+        }
+
+        const itemData = insertPackingItemSchema.parse(req.body);
+        const newItem = await storage.createPackingItem({
+          ...itemData,
+          tripId,
+        });
+        res.status(201).json(newItem);
+      } catch (error: any) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ message: error.errors });
+        }
+        res.status(500).json({ message: error.message });
       }
-      res.status(500).json({ message: error.message });
     }
-  });
+  );
 
   app.patch("/api/packing-items/:id", isAuthenticated, async (req, res) => {
     try {
@@ -497,22 +566,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(trip.id);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
+        const isEditor = members.some(
+          (member) =>
+            member.userId === req.user!.id &&
+            (member.role === "editor" || member.role === "owner")
         );
-        
+
         if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to update this packing item" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to update this packing item" });
         }
       }
 
       // Allow updating isPacked status separately
       const updateData = {
         ...insertPackingItemSchema.partial().parse(req.body),
-        ...(req.body.isPacked !== undefined ? { isPacked: req.body.isPacked } : {})
+        ...(req.body.isPacked !== undefined
+          ? { isPacked: req.body.isPacked }
+          : {}),
       };
-      
+
       const updatedItem = await storage.updatePackingItem(itemId, updateData);
       res.json(updatedItem);
     } catch (error: any) {
@@ -540,13 +614,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(trip.id);
-        const isEditor = members.some(member => 
-          member.userId === req.user!.id && 
-          (member.role === "editor" || member.role === "owner")
+        const isEditor = members.some(
+          (member) =>
+            member.userId === req.user!.id &&
+            (member.role === "editor" || member.role === "owner")
         );
-        
+
         if (!isEditor) {
-          return res.status(403).json({ message: "Not authorized to delete this packing item" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to delete this packing item" });
         }
       }
 
@@ -572,14 +649,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get all trips for the user
       const userTrips = await storage.getTripsByUser(req.user!.id);
-      
+
       // Get tags for each trip
       const allTags: TripTag[] = [];
       for (const trip of userTrips) {
         const tripTags = await storage.getTripTags(trip.id);
         allTags.push(...tripTags);
       }
-      
+
       res.json(allTags);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -598,10 +675,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user owns this trip or is a member
       if (trip.userId !== req.user!.id) {
         const members = await storage.getTripMembers(tripId);
-        const isMember = members.some(member => member.userId === req.user!.id);
-        
+        const isMember = members.some(
+          (member) => member.userId === req.user!.id
+        );
+
         if (!isMember) {
-          return res.status(403).json({ message: "Not authorized to view this trip's tags" });
+          return res
+            .status(403)
+            .json({ message: "Not authorized to view this trip's tags" });
         }
       }
 
@@ -634,7 +715,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user owns this trip
       if (trip.userId !== req.user!.id) {
-        return res.status(403).json({ message: "Not authorized to share this trip" });
+        return res
+          .status(403)
+          .json({ message: "Not authorized to share this trip" });
       }
 
       const { username, role = "viewer" } = req.body;
@@ -650,15 +733,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Don't allow sharing with self
       if (shareWithUser.id === req.user!.id) {
-        return res.status(400).json({ message: "Cannot share trip with yourself" });
+        return res
+          .status(400)
+          .json({ message: "Cannot share trip with yourself" });
       }
 
       // Check if trip is already shared with this user
       const members = await storage.getTripMembers(tripId);
-      const alreadyShared = members.some(member => member.userId === shareWithUser.id);
-      
+      const alreadyShared = members.some(
+        (member) => member.userId === shareWithUser.id
+      );
+
       if (alreadyShared) {
-        return res.status(400).json({ message: "Trip already shared with this user" });
+        return res
+          .status(400)
+          .json({ message: "Trip already shared with this user" });
       }
 
       // Mark trip as shared
@@ -670,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tripMember = await storage.addTripMember({
         tripId,
         userId: shareWithUser.id,
-        role
+        role,
       });
 
       res.status(201).json(tripMember);
@@ -703,19 +792,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get 7-day forecast for a location
-  app.get("/api/weather/forecast/:location", isAuthenticated, async (req, res) => {
-    try {
-      const location = req.params.location;
-      if (!location) {
-        return res.status(400).json({ message: "Location is required" });
+  app.get(
+    "/api/weather/forecast/:location",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const location = req.params.location;
+        if (!location) {
+          return res.status(400).json({ message: "Location is required" });
+        }
+
+        console.log(`Fetching 7-day forecast for location: ${location}`);
+        const forecast = await getForecast(location);
+        res.json(forecast);
+      } catch (error: any) {
+        console.error("Error fetching forecast:", error);
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to fetch forecast data" });
       }
-      
-      console.log(`Fetching 7-day forecast for location: ${location}`);
-      const forecast = await getForecast(location);
-      res.json(forecast);
-    } catch (error: any) {
-      console.error("Error fetching forecast:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch forecast data" });
+    }
+  );
+
+  // Accommodations API routes
+  app.get(
+    "/api/trips/:id/accommodations",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const tripId = parseInt(req.params.id);
+
+        // Verify the trip exists and user has access
+        const trip = await storage.getTrip(tripId);
+        if (!trip) {
+          return res.status(404).json({ message: "Trip not found" });
+        }
+
+        // Check if user owns this trip or is a member
+        if (trip.userId !== req.user!.id) {
+          const members = await storage.getTripMembers(tripId);
+          const isMember = members.some(
+            (member) => member.userId === req.user!.id
+          );
+
+          if (!isMember) {
+            return res.status(403).json({
+              message: "Not authorized to view this trip's accommodations",
+            });
+          }
+        }
+
+        const accommodations = await db.all(
+          "SELECT * FROM accommodations WHERE tripId = ? ORDER BY checkIn ASC",
+          [tripId]
+        );
+        res.json(accommodations);
+      } catch (error) {
+        console.error("Error fetching accommodations:", error);
+        res.status(500).json({ error: "Failed to fetch accommodations" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/trips/:id/accommodations",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const tripId = parseInt(req.params.id);
+        const trip = await storage.getTrip(tripId);
+
+        if (!trip) {
+          return res.status(404).json({ message: "Trip not found" });
+        }
+
+        // Check if user owns this trip or has editor role
+        if (trip.userId !== req.user!.id) {
+          const members = await storage.getTripMembers(tripId);
+          const isEditor = members.some(
+            (member) =>
+              member.userId === req.user!.id &&
+              (member.role === "editor" || member.role === "owner")
+          );
+
+          if (!isEditor) {
+            return res.status(403).json({
+              message: "Not authorized to add accommodations to this trip",
+            });
+          }
+        }
+
+        // Parse and validate the request body
+        const data = accommodationSchema.parse(req.body);
+
+        const result = await db.run(
+          `INSERT INTO accommodations (tripId, name, address, checkIn, checkOut, confirmationNumber, notes, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [
+            tripId,
+            data.name,
+            data.address,
+            data.checkIn,
+            data.checkOut,
+            data.confirmationNumber || null,
+            data.notes || null,
+          ]
+        );
+
+        const lastId = await db.get("SELECT last_insert_rowid() as id");
+        if (!lastId || !lastId.id) {
+          throw new Error("Failed to get last inserted ID");
+        }
+
+        const accommodation = await db.get(
+          "SELECT * FROM accommodations WHERE id = ?",
+          [lastId.id]
+        );
+        if (!accommodation) {
+          throw new Error("Failed to retrieve created accommodation");
+        }
+
+        res.setHeader("Content-Type", "application/json");
+        res.status(201).json(accommodation);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ error: error.errors });
+        }
+        console.error("Error adding accommodation:", error);
+        res.status(500).json({ error: "Failed to add accommodation" });
+      }
+    }
+  );
+
+  app.patch("/api/accommodations/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = accommodationSchema.parse(req.body);
+
+      await db.run(
+        `UPDATE accommodations 
+         SET name = ?, address = ?, checkIn = ?, checkOut = ?, 
+             confirmationNumber = ?, notes = ?, updatedAt = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [
+          data.name,
+          data.address,
+          data.checkIn,
+          data.checkOut,
+          data.confirmationNumber,
+          data.notes,
+          id,
+        ]
+      );
+
+      const accommodation = await db.get(
+        "SELECT * FROM accommodations WHERE id = ?",
+        [id]
+      );
+
+      res.json(accommodation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to update accommodation" });
+      }
+    }
+  });
+
+  app.delete("/api/accommodations/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await db.run("DELETE FROM accommodations WHERE id = ?", [id]);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete accommodation" });
     }
   });
 

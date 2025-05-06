@@ -1,0 +1,179 @@
+@media print {
+  /* Hide non-printable elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Clean page breaks */
+  .print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Print header styles */
+  .print-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #ccc;
+  }
+
+  /* Basic print styling */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.3;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Card formatting */
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  /* Show all tab content */
+  [role="tabpanel"],
+  [data-state="inactive"] {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Hide interactive elements */
+  button:not(.print-show),
+  .dialog-trigger,
+  .interactive-only {
+    display: none !important;
+  }
+
+  /* Force background colors and images */
+  *,
+  input[type="checkbox"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Proper spacing */
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: black !important;
+  }
+
+  p,
+  span {
+    color: black !important;
+  }
+
+  .p-4,
+  .p-6 {
+    padding: 1rem !important;
+  }
+  /* Itinerary specific formatting */
+  .trip-day {
+    margin-bottom: 2rem;
+    break-inside: avoid;
+  }
+
+  .day-header {
+    font-size: 16pt;
+    margin-bottom: 1rem;
+    color: #000 !important;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+    position: relative !important;
+    background: white !important;
+  }
+
+  .time-section {
+    margin-bottom: 1.5rem;
+    break-inside: avoid;
+  }
+
+  .time-section-header {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Activity card formatting */
+  [data-id="schedule-content"] .card {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    border: 1px solid #eee;
+    padding: 1rem !important;
+  }
+
+  [data-id="schedule-content"] .card-header {
+    padding-bottom: 0.5rem !important;
+  }
+
+  [data-id="schedule-content"] .card-title {
+    font-size: 14pt;
+    font-weight: 600;
+    color: black !important;
+    padding-right: 0 !important;
+  }
+
+  [data-id="schedule-content"] .card-description {
+    display: flex !important;
+    align-items: center;
+    color: #666 !important;
+    font-weight: normal;
+  }
+
+  [data-id="schedule-content"] .card-content {
+    padding-bottom: 0 !important;
+  }
+
+  /* Location and time formatting */
+  [data-id="schedule-content"] [class*="lucide-"] {
+    width: 12pt;
+    height: 12pt;
+    color: #666 !important;
+  }
+
+  /* Time section labels */
+  [data-id="schedule-content"] .bg-blue-100,
+  [data-id="schedule-content"] .bg-orange-100,
+  [data-id="schedule-content"] .bg-gray-100 {
+    padding: 2px 8px !important;
+    font-size: 10pt !important;
+    font-weight: 600 !important;
+    border-radius: 4px !important;
+  }
+
+  /* Ensure proper badge colors in print */
+  .text-blue-800 {
+    color: #1e40af !important;
+  }
+
+  .text-orange-800 {
+    color: #9a3412 !important;
+  }
+
+  .bg-blue-100 {
+    background-color: #dbeafe !important;
+  }
+
+  .bg-orange-100 {
+    background-color: #ffedd5 !important;
+  }
+}

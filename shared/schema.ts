@@ -14,7 +14,9 @@ export const users = sqliteTable("users", {
 // Trips table
 export const trips = sqliteTable("trips", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
   name: text("name").notNull(),
   destination: text("destination").notNull(),
   startDate: text("start_date").notNull(), // Store as ISO string
@@ -27,7 +29,9 @@ export const trips = sqliteTable("trips", {
 // Trip tags table
 export const tripTags = sqliteTable("trip_tags", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => trips.id),
   name: text("name").notNull(),
   color: text("color").notNull(),
 });
@@ -35,7 +39,9 @@ export const tripTags = sqliteTable("trip_tags", {
 // Trip schedules table
 export const schedules = sqliteTable("schedules", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => trips.id),
   day: text("day").notNull(), // Store as ISO string
   title: text("title").notNull(),
   time: text("time"),
@@ -53,7 +59,9 @@ export const packingCategories = sqliteTable("packing_categories", {
 // Packing list items
 export const packingItems = sqliteTable("packing_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => trips.id),
   categoryId: integer("category_id").references(() => packingCategories.id),
   name: text("name").notNull(),
   isPacked: integer("is_packed", { mode: "boolean" }).notNull().default(false),
@@ -63,8 +71,12 @@ export const packingItems = sqliteTable("packing_items", {
 // Trip members (for sharing)
 export const tripMembers = sqliteTable("trip_members", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  tripId: integer("trip_id").notNull().references(() => trips.id),
-  userId: integer("user_id").notNull().references(() => users.id),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => trips.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
   role: text("role").notNull().default("viewer"), // viewer, editor, owner
 });
 
@@ -121,3 +133,16 @@ export type InsertPackingItem = z.infer<typeof insertPackingItemSchema>;
 export type TripMember = typeof tripMembers.$inferSelect;
 export type TripTag = typeof tripTags.$inferSelect;
 export type WeatherCache = typeof weatherCache.$inferSelect;
+
+export interface Accommodation {
+  id: number;
+  tripId: number;
+  name: string;
+  address: string;
+  checkIn: string;
+  checkOut: string;
+  confirmationNumber?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}

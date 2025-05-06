@@ -1,0 +1,24 @@
+{
+  "name": "TravelCompanion",
+  "description": "A travel planning and management application",
+  "env": {
+    "NODE_ENV": {
+      "description": "Environment for the application",
+      "value": "production"
+    },
+    "SESSION_SECRET": {
+      "description": "A secret key for session management",
+      "generator": "secret"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:hobby-dev"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}
